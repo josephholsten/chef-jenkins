@@ -21,8 +21,10 @@
 
 include_recipe "apache2"
 
+apache_module "headers"
 apache_module "proxy"
 apache_module "proxy_http"
+apache_module "rewrite"
 apache_module "vhost_alias"
 
 if node[:jenkins][:http_proxy][:www_redirect] == "enable"
@@ -34,12 +36,16 @@ end
 
 host_name = node[:jenkins][:http_proxy][:host_name] || node[:fqdn]
 
-template "#{node.apache.dir}/htpasswd" do
-  variables( :username => node.jenkins.http_proxy.basic_auth_username,
-             :password => node.jenkins.http_proxy.basic_auth_password)
-  owner node.apache.user
-  group node.apache.user
-  mode 0600
+users = search(:users, '*:*')
+
+template "#{node['apache']['dir']}/htpasswd" do
+  source "htpasswd.erb"
+  owner node['apache']['user']
+  group node['apache']['user']
+  mode 0640
+  variables(
+    :sysadmins => users
+  )
 end
 
 template "#{node[:apache][:dir]}/sites-available/jenkins" do
